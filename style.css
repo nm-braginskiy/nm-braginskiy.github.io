@@ -22,23 +22,123 @@ body {
   font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
-  padding: 40px 20px;
+  overflow-x: hidden;
   display: flex;
   justify-content: center;
+  padding: 40px 20px;
 }
+
+/* ===== App Shell ===== */
+
+#app {
+  width: 100%;
+  min-height: calc(100vh - 80px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#app.fade-out {
+  animation: fadeOut 0.3s ease forwards;
+}
+
+#app.fade-in {
+  animation: fadeIn 0.35s ease forwards;
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(8px); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+#app.solver-active {
+  align-items: flex-start;
+}
+
+#app.solver-active > .container {
+  width: 100%;
+  max-width: 800px;
+}
+
+/* ===== Home Card ===== */
+
+.home-icon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 16px;
+  filter: drop-shadow(0 0 8px var(--accent));
+}
+
+.home-card {
+  text-align: center;
+  padding: 48px 40px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  max-width: 420px;
+  width: 100%;
+}
+
+.home-card h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.home-card p {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  margin-bottom: 28px;
+}
+
+.btn-start {
+  display: inline-block;
+  padding: 10px 24px;
+  background: var(--accent);
+  color: var(--bg-dark);
+  text-decoration: none;
+  border-radius: var(--radius);
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+  border: 1px solid var(--accent);
+}
+
+.btn-start:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+/* ===== Solver: Container ===== */
 
 .container {
   width: 100%;
   max-width: 800px;
 }
 
-/* ===== Header ===== */
+/* ===== Solver: Header ===== */
 
 h1 {
   font-size: 1.5rem;
   font-weight: 600;
   color: var(--text-main);
   margin-bottom: 8px;
+}
+
+.header-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  vertical-align: middle;
+  filter: drop-shadow(0 0 4px var(--accent));
 }
 
 h1 .tag {
@@ -65,7 +165,7 @@ h1 .tag {
   border-bottom: 1px solid var(--border);
 }
 
-/* ===== Syntax Help Card ===== */
+/* ===== Solver: Syntax Help ===== */
 
 .syntax-help {
   background: var(--bg-card);
@@ -118,7 +218,7 @@ h1 .tag {
   margin-top: 6px;
 }
 
-/* ===== Input Area ===== */
+/* ===== Solver: Input Area ===== */
 
 .input-area {
   margin-bottom: 24px;
@@ -131,7 +231,7 @@ h1 .tag {
   margin-bottom: 6px;
 }
 
-/* ===== Mode Selector ===== */
+/* ===== Solver: Mode Selector ===== */
 
 .mode-selector {
   display: flex;
@@ -171,7 +271,7 @@ h1 .tag {
   font-weight: 500;
 }
 
-/* ===== Input Row ===== */
+/* ===== Solver: Input Row ===== */
 
 .input-row {
   display: flex;
@@ -245,7 +345,7 @@ h1 .tag {
   font-size: 13px;
 }
 
-/* ===== Result Area ===== */
+/* ===== Solver: Result Area ===== */
 
 #result-area {
   background: var(--bg-card);
@@ -288,7 +388,7 @@ h1 .tag {
   border-color: var(--accent);
 }
 
-/* ===== Steps List ===== */
+/* ===== Solver: Steps List ===== */
 
 #steps-list {
   list-style: none;
@@ -318,6 +418,7 @@ h1 .tag {
   font-family: var(--font-mono);
   color: var(--text-main);
   font-size: 15px;
+  word-break: break-all;
 }
 
 .step-law {
@@ -339,29 +440,11 @@ h1 .tag {
 
 /* ===== Syntax Highlighting ===== */
 
-.hl-var {
-  color: #a5d6ff;
-  font-weight: 500;
-}
-
-.hl-op {
-  color: #ff7b72;
-  font-weight: 600;
-}
-
-.hl-not {
-  color: #ffa657;
-  font-weight: 600;
-}
-
-.hl-const {
-  color: #d2a8ff;
-  font-weight: 500;
-}
-
-.hl-bracket {
-  font-weight: 500;
-}
+.hl-var { color: #a5d6ff; font-weight: 500; }
+.hl-op { color: #ff7b72; font-weight: 600; }
+.hl-not { color: #ffa657; font-weight: 600; }
+.hl-const { color: #d2a8ff; font-weight: 500; }
+.hl-bracket { font-weight: 500; }
 
 .bracket-0 { color: #ffd700; }
 .bracket-1 { color: #da70d6; }

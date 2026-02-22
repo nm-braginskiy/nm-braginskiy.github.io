@@ -1,10 +1,25 @@
 // ===== UI =====
-document.getElementById('solve-btn').addEventListener('click', run);
-document.getElementById('expression').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') run();
-});
-
 let lastSteps = [];
+let exprInput, highlightDiv, lastVal;
+
+function initUI() {
+  exprInput = document.getElementById('expression');
+  highlightDiv = document.getElementById('input-highlight');
+  lastVal = exprInput.value;
+  lastSteps = [];
+
+  document.getElementById('solve-btn').addEventListener('click', run);
+  exprInput.addEventListener('keydown', onKeydown);
+  exprInput.addEventListener('beforeinput', onBeforeinput);
+  exprInput.addEventListener('input', onInput);
+  exprInput.addEventListener('keyup', syncHighlight);
+  exprInput.addEventListener('click', syncHighlight);
+  exprInput.addEventListener('scroll', () => {
+    highlightDiv.scrollLeft = exprInput.scrollLeft;
+  });
+  document.getElementById('copy-btn').addEventListener('click', onCopy);
+  syncHighlight();
+}
 
 function run() {
   const input = document.getElementById('expression').value.trim();
@@ -62,7 +77,7 @@ function run() {
 }
 
 // ===== COPY SOLUTION =====
-document.getElementById('copy-btn').addEventListener('click', () => {
+function onCopy() {
   if (lastSteps.length === 0) return;
   const lines = ['Пошаговое решение'];
   for (let i = 0; i < lastSteps.length; i++) {
@@ -80,7 +95,7 @@ document.getElementById('copy-btn').addEventListener('click', () => {
     btn.textContent = 'Скопировано!';
     setTimeout(() => { btn.textContent = original; }, 1500);
   });
-});
+}
 
 function escHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -260,8 +275,6 @@ function highlightInput(raw, activeOpen, activeClose) {
 }
 
 // ===== INPUT HIGHLIGHT SYNC =====
-const exprInput = document.getElementById('expression');
-const highlightDiv = document.getElementById('input-highlight');
 
 function syncHighlight() {
   const val = exprInput.value;
@@ -272,13 +285,6 @@ function syncHighlight() {
   highlightDiv.innerHTML = highlightInput(val, openPos, closePos) + '\u00a0';
 }
 
-exprInput.addEventListener('keyup', syncHighlight);
-exprInput.addEventListener('click', syncHighlight);
-exprInput.addEventListener('scroll', () => {
-  highlightDiv.scrollLeft = exprInput.scrollLeft;
-});
-syncHighlight();
-
 // ===== HELPER: set value and cursor =====
 function setVal(newVal, cursorPos) {
   exprInput.value = newVal;
@@ -287,7 +293,7 @@ function setVal(newVal, cursorPos) {
 }
 
 // ===== BEFOREINPUT: character insertion tweaks (works on mobile + desktop) =====
-exprInput.addEventListener('beforeinput', (e) => {
+function onBeforeinput(e) {
   const char = e.data;
   if (!char || char.length !== 1) return; // only single-char inserts
   if (e.inputType !== 'insertText' && e.inputType !== 'insertCompositionText') return;
@@ -380,10 +386,10 @@ exprInput.addEventListener('beforeinput', (e) => {
     setVal(val.slice(0, pos) + '->' + val.slice(pos), pos + 2);
     return;
   }
-});
+}
 
 // ===== KEYDOWN: Backspace tweaks + Enter (works fine on mobile) =====
-exprInput.addEventListener('keydown', (e) => {
+function onKeydown(e) {
   if (e.key === 'Enter') { run(); return; }
   if (e.key !== 'Backspace') return;
 
@@ -410,12 +416,11 @@ exprInput.addEventListener('keydown', (e) => {
     setVal(val.slice(0, pos - 2) + val.slice(pos), pos - 2);
     return;
   }
-});
+}
 
 // ===== FALLBACK: input event for IME / mobile keyboards =====
 // Catches cases where beforeinput didn't fire (e.g. Android IME composing)
-let lastVal = exprInput.value;
-exprInput.addEventListener('input', () => {
+function onInput() {
   const val = exprInput.value;
   const pos = exprInput.selectionStart;
 
@@ -460,4 +465,7 @@ exprInput.addEventListener('input', () => {
 
   lastVal = val;
   syncHighlight();
-});
+}
+
+// Auto-init when loaded standalone (not via SPA)
+if (document.getElementById('expression')) initUI();
