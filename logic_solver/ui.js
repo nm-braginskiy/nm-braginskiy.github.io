@@ -142,54 +142,14 @@ function highlightExpr(raw) {
     }
 
     if (/[a-zA-Z]/.test(s[i])) {
-      let name = '';
-      while (i < s.length && /[a-zA-Z0-9_]/.test(s[i])) { name += s[i]; i++; }
-      result += `<span class="hl-var">${name}</span>`;
+      result += `<span class="hl-var">${s[i]}</span>`;
+      i++;
       continue;
     }
 
     result += s[i];
     i++;
   }
-  return result;
-}
-
-// ===== ADD IMPLICIT MULTIPLICATION HINTS =====
-function addImplicitMultiplication(raw) {
-  let result = '';
-  let i = 0;
-  
-  while (i < raw.length) {
-    const char = raw[i];
-    result += char;
-    
-    if (i < raw.length - 1) {
-      const next = raw[i + 1];
-      
-      // Check if we need to insert implicit multiplication hint
-      const isVarOrConst = (c) => /[a-zA-Z0-9]/.test(c);
-      const isOpenParen = (c) => c === '(';
-      const isCloseParen = (c) => c === ')';
-      
-      let needsMultiplication = false;
-      
-      // VAR/CONST followed by VAR/CONST or LPAREN
-      if (isVarOrConst(char) && !raw[i - 1]?.match(/[a-zA-Z0-9_]/) && (isVarOrConst(next) || isOpenParen(next))) {
-        needsMultiplication = true;
-      }
-      // RPAREN followed by VAR/CONST or LPAREN
-      else if (isCloseParen(char) && (isVarOrConst(next) || isOpenParen(next))) {
-        needsMultiplication = true;
-      }
-      
-      if (needsMultiplication && next !== ' ') {
-        result += '<span class="hl-implicit-op"> * </span>';
-      }
-    }
-    
-    i++;
-  }
-  
   return result;
 }
 
@@ -228,9 +188,11 @@ function highlightInput(raw, activeOpen, activeClose) {
   const bracketColors = ['bracket-0', 'bracket-1', 'bracket-2', 'bracket-3', 'bracket-4'];
 
   while (i < raw.length) {
-    if (raw[i] === ' ') { result += ' '; i++; continue; }
+    const char = raw[i];
 
-    if (raw[i] === '(') {
+    if (char === ' ') { result += ' '; i++; continue; }
+
+    if (char === '(') {
       const cls = bracketColors[bracketDepth % bracketColors.length];
       const active = (i === activeOpen) ? ' hl-bracket-active' : '';
       result += `<span class="hl-bracket ${cls}${active}">(</span>`;
@@ -239,99 +201,36 @@ function highlightInput(raw, activeOpen, activeClose) {
       continue;
     }
 
-    if (raw[i] === ')') {
+    if (char === ')') {
       bracketDepth--;
       if (bracketDepth < 0) bracketDepth = 0;
       const cls = bracketColors[bracketDepth % bracketColors.length];
       const active = (i === activeClose) ? ' hl-bracket-active' : '';
       result += `<span class="hl-bracket ${cls}${active}">)</span>`;
       i++;
-      
-      // Check if we need to insert implicit multiplication hint after )
-      if (i < raw.length && raw[i] !== ' ') {
-        const next = raw[i];
-        if (/[a-zA-Z0-9]/.test(next) || next === '(') {
-          result += '<span class="hl-implicit-op"> * </span>';
-        }
-      }
       continue;
     }
 
-    // <->
-    if (raw[i] === '<' && raw[i + 1] === '-' && raw[i + 2] === '>') {
-      result += '<span class="hl-op">&lt;-&gt;</span>';
-      i += 3;
-      continue;
-    }
+    // Operators
+    if (raw.startsWith('<->', i)) { result += '<span class="hl-op">&lt;-&gt;</span>'; i += 3; continue; }
+    if (raw.startsWith('->', i)) { result += '<span class="hl-op">-&gt;</span>'; i += 2; continue; }
+    if (raw.startsWith('!!+', i)) { result += '<span class="hl-op">!!+</span>'; i += 3; continue; }
+    if (raw.startsWith('!+', i)) { result += '<span class="hl-op">!+</span>'; i += 2; continue; }
+    if (raw.startsWith('!*', i)) { result += '<span class="hl-op">!*</span>'; i += 2; continue; }
+    if (char === '*' || char === '+') { result += `<span class="hl-op">${char}</span>`; i++; continue; }
+    if (char === '-') { result += '<span class="hl-not">-</span>'; i++; continue; }
 
-    // ->
-    if (raw[i] === '-' && raw[i + 1] === '>') {
-      result += '<span class="hl-op">-&gt;</span>';
-      i += 2;
-      continue;
-    }
+    // Constants
+    if (char === '0' || char === '1') { result += `<span class="hl-const">${char}</span>`; i++; continue; }
 
-    if (raw[i] === '!' && raw[i + 1] === '!' && raw[i + 2] === '+') {
-      result += '<span class="hl-op">!!+</span>';
-      i += 3;
-      continue;
-    }
-
-    if (raw[i] === '!' && raw[i + 1] === '+') {
-      result += '<span class="hl-op">!+</span>';
-      i += 2;
-      continue;
-    }
-
-    if (raw[i] === '!' && raw[i + 1] === '*') {
-      result += '<span class="hl-op">!*</span>';
-      i += 2;
-      continue;
-    }
-
-    if (raw[i] === '*' || raw[i] === '+') {
-      result += `<span class="hl-op">${raw[i]}</span>`;
+    // Variables (single letter)
+    if (/[a-zA-Z]/.test(char)) {
+      result += `<span class="hl-var">${char}</span>`;
       i++;
       continue;
     }
 
-    if (raw[i] === '-') {
-      result += '<span class="hl-not">-</span>';
-      i++;
-      continue;
-    }
-
-    if (raw[i] === '0' || raw[i] === '1') {
-      result += `<span class="hl-const">${raw[i]}</span>`;
-      i++;
-      
-      // Check if we need to insert implicit multiplication hint after constant
-      if (i < raw.length && raw[i] !== ' ') {
-        const next = raw[i];
-        if (/[a-zA-Z]/.test(next) || next === '(') {
-          result += '<span class="hl-implicit-op"> * </span>';
-        }
-      }
-      continue;
-    }
-
-    if (/[a-zA-Z]/.test(raw[i])) {
-      let name = '';
-      let startPos = i;
-      while (i < raw.length && /[a-zA-Z0-9_]/.test(raw[i])) { name += raw[i]; i++; }
-      result += `<span class="hl-var">${name}</span>`;
-      
-      // Check if we need to insert implicit multiplication hint after this variable
-      if (i < raw.length && raw[i] !== ' ') {
-        const next = raw[i];
-        if (/[a-zA-Z0-9]/.test(next) || next === '(') {
-          result += '<span class="hl-implicit-op"> * </span>';
-        }
-      }
-      continue;
-    }
-
-    result += escHtml(raw[i]);
+    result += escHtml(char);
     i++;
   }
   return result;
@@ -365,6 +264,102 @@ exprInput.addEventListener('keydown', (e) => {
   const pos = exprInput.selectionStart;
   const val = exprInput.value;
 
+  // --- Smart operator aliases ---
+  // & → *, | → +, ~ → -
+  // V → + only when used as operator (after var/const/)), otherwise it's a variable
+  if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (e.key === '&' || e.key === '|' || e.key === '~') {
+      e.preventDefault();
+      const replacement = e.key === '&' ? '*' : e.key === '|' ? '+' : '-';
+      const before = val.slice(0, pos);
+      const after = val.slice(pos);
+      exprInput.value = before + replacement + after;
+      exprInput.setSelectionRange(pos + 1, pos + 1);
+      syncHighlight();
+      return;
+    }
+    // V as OR: only if previous char is var/const/)
+    if (e.key === 'V' && pos > 0) {
+      const prev = val[pos - 1];
+      if (/[a-zA-Z01]/.test(prev) || prev === ')') {
+        e.preventDefault();
+        const before = val.slice(0, pos);
+        const after = val.slice(pos);
+        exprInput.value = before + '+' + after;
+        exprInput.setSelectionRange(pos + 1, pos + 1);
+        syncHighlight();
+        return;
+      }
+    }
+  }
+
+  // --- Auto-insert " * " (implicit conjunction) ---
+  // When typing a variable/digit/( after a variable/digit/), insert " * " before it
+  if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    const prev = pos > 0 ? val[pos - 1] : '';
+    const isPrevVar = /[a-zA-Z]/.test(prev);
+    const isPrevConst = /[01]/.test(prev);
+    const isPrevClose = prev === ')';
+
+    const isCurrVar = /[a-zA-Z]/.test(e.key);
+    const isCurrConst = /[01]/.test(e.key);
+    const isCurrOpen = e.key === '(';
+
+    const needsMult =
+      ((isPrevVar || isPrevConst) && (isCurrVar || isCurrOpen)) ||
+      (isPrevClose && (isCurrVar || isCurrOpen || isCurrConst));
+
+    // Check for pattern: (var/const/))-(...)-var/const/(
+    // Typing var/const/( after "-" where before "-" is var/const/)
+    // Expand "X-Y" into "X + -Y"
+    // Handles: "a-b", "a -b", "a- b" (prev is "-" directly before cursor)
+    if (!needsMult && (isCurrVar || isCurrConst || isCurrOpen) && prev === '-' && pos >= 2) {
+      // Find what's before the "-": skip optional space
+      let scanPos = pos - 2;
+      if (scanPos >= 0 && val[scanPos] === ' ') scanPos--;
+      if (scanPos >= 0) {
+        const ch = val[scanPos];
+        if (/[a-zA-Z]/.test(ch) || /[01]/.test(ch) || ch === ')') {
+          e.preventDefault();
+          // Also eat trailing space between X and "-" if present
+          const dashPos = pos - 1;
+          let cutStart = dashPos;
+          if (cutStart > 0 && val[cutStart - 1] === ' ') cutStart--;
+          const before = val.slice(0, cutStart);
+          const after = val.slice(pos);
+          if (e.key === '(') {
+            exprInput.value = before + ' + -()' + after;
+            const cursor = before.length + 5; // between ( and )
+            exprInput.setSelectionRange(cursor, cursor);
+          } else {
+            exprInput.value = before + ' + -' + e.key + after;
+            const cursor = before.length + 5;
+            exprInput.setSelectionRange(cursor, cursor);
+          }
+          syncHighlight();
+          return;
+        }
+      }
+    }
+
+    if (needsMult) {
+      e.preventDefault();
+      const before = val.slice(0, pos);
+      const after = val.slice(pos);
+
+      if (e.key === '(') {
+        // Auto-insert * and auto-close bracket
+        exprInput.value = before + ' * ()' + after;
+        exprInput.setSelectionRange(pos + 4, pos + 4);
+      } else {
+        exprInput.value = before + ' * ' + e.key + after;
+        exprInput.setSelectionRange(pos + 4, pos + 4);
+      }
+      syncHighlight();
+      return;
+    }
+  }
+
   // Auto-close bracket
   if (e.key === '(') {
     e.preventDefault();
@@ -388,6 +383,24 @@ exprInput.addEventListener('keydown', (e) => {
     e.preventDefault();
     exprInput.value = val.slice(0, pos - 1) + val.slice(pos + 1);
     exprInput.setSelectionRange(pos - 1, pos - 1);
+    syncHighlight();
+    return;
+  }
+
+  // Smart delete: <-> — delete entire operator (3 chars)
+  if (e.key === 'Backspace' && pos >= 3 && val.slice(pos - 3, pos) === '<->') {
+    e.preventDefault();
+    exprInput.value = val.slice(0, pos - 3) + val.slice(pos);
+    exprInput.setSelectionRange(pos - 3, pos - 3);
+    syncHighlight();
+    return;
+  }
+
+  // Smart delete: !!+ — delete only !+ part, keep first !
+  if (e.key === 'Backspace' && pos >= 3 && val.slice(pos - 3, pos) === '!!+') {
+    e.preventDefault();
+    exprInput.value = val.slice(0, pos - 2) + val.slice(pos);
+    exprInput.setSelectionRange(pos - 2, pos - 2);
     syncHighlight();
     return;
   }

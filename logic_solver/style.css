@@ -250,9 +250,3 @@ h2 {
   border-radius: 2px;
   text-shadow: 0 0 6px currentColor;
 }
-
-.hl-implicit-op {
-  color: #666;
-  font-weight: 400;
-  opacity: 0.6;
-}

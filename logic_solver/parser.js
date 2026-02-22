@@ -46,9 +46,13 @@ function parse(tokens) {
   function parseAnd() {
     let left = parseNot();
     while (peek() && peek().type === 'OP' && (peek().value === 'and' || peek().value === 'nand')) {
-      const op = peek().value;
+      const tok = peek();
+      const op = tok.value;
+      const implicit = !!tok.implicit;
       pos++;
-      left = { type: op, left, right: parseNot() };
+      const node = { type: op, left, right: parseNot() };
+      if (implicit) node.implicit = true;
+      left = node;
     }
     return left;
   }
@@ -92,7 +96,6 @@ function astToStr(node) {
     return '-(' + inner + ')';
   }
   const opSymbols = { and: ' * ', or: ' + ', xor: ' !+ ', nand: ' !* ', nor: ' !!+ ', imp: ' -> ', eqv: ' <-> ' };
-  const sym = opSymbols[node.type];
   const priority = { eqv: 1, imp: 2, or: 3, xor: 3, nor: 3, and: 4, nand: 4 };
   const p = priority[node.type] || 0;
 
@@ -101,7 +104,8 @@ function astToStr(node) {
     if (cp < p) return '(' + astToStr(child) + ')';
     return astToStr(child);
   }
-  return wrap(node.left) + sym + wrap(node.right);
+
+  return wrap(node.left) + opSymbols[node.type] + wrap(node.right);
 }
 
 // ===== Deep Clone =====

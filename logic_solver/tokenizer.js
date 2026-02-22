@@ -6,57 +6,55 @@ function tokenize(input) {
   const tokens = [];
   let i = 0;
   while (i < input.length) {
-    if (input[i] === ' ') { i++; continue; }
-    if (input[i] === '(') { tokens.push({ type: 'LPAREN' }); i++; continue; }
-    if (input[i] === ')') { tokens.push({ type: 'RPAREN' }); i++; continue; }
-    if (input[i] === '-' && input[i + 1] === '>') { tokens.push({ type: 'OP', value: 'imp' }); i += 2; continue; }
-    if (input[i] === '<' && input[i + 1] === '-' && input[i + 2] === '>') { tokens.push({ type: 'OP', value: 'eqv' }); i += 3; continue; }
-    if (input[i] === '!' && input[i + 1] === '!' && input[i + 2] === '+') { tokens.push({ type: 'OP', value: 'nor' }); i += 3; continue; }
-    if (input[i] === '!' && input[i + 1] === '+') { tokens.push({ type: 'OP', value: 'xor' }); i += 2; continue; }
-    if (input[i] === '!' && input[i + 1] === '*') { tokens.push({ type: 'OP', value: 'nand' }); i += 2; continue; }
-    if (input[i] === '*') { tokens.push({ type: 'OP', value: 'and' }); i++; continue; }
-    if (input[i] === '+') { tokens.push({ type: 'OP', value: 'or' }); i++; continue; }
-    if (input[i] === '-') { tokens.push({ type: 'NOT' }); i++; continue; }
-    if (input[i] === '0') { tokens.push({ type: 'CONST', value: 0 }); i++; continue; }
-    if (input[i] === '1') { tokens.push({ type: 'CONST', value: 1 }); i++; continue; }
-    if (/[a-zA-Z]/.test(input[i])) {
-      let name = '';
-      while (i < input.length && /[a-zA-Z0-9_]/.test(input[i])) { name += input[i]; i++; }
-      tokens.push({ type: 'VAR', value: name });
+    const char = input[i];
+    if (char === ' ') { i++; continue; }
+    if (char === '(') { tokens.push({ type: 'LPAREN' }); i++; continue; }
+    if (char === ')') { tokens.push({ type: 'RPAREN' }); i++; continue; }
+
+    // Операторы (сначала длинные)
+    if (input.startsWith('<->', i)) { tokens.push({ type: 'OP', value: 'eqv' }); i += 3; continue; }
+    if (input.startsWith('->', i))  { tokens.push({ type: 'OP', value: 'imp' }); i += 2; continue; }
+    if (input.startsWith('!!+', i)) { tokens.push({ type: 'OP', value: 'nor' }); i += 3; continue; }
+    if (input.startsWith('!+', i))  { tokens.push({ type: 'OP', value: 'xor' }); i += 2; continue; }
+    if (input.startsWith('!*', i))  { tokens.push({ type: 'OP', value: 'nand' }); i += 2; continue; }
+    if (char === '*') { tokens.push({ type: 'OP', value: 'and' }); i++; continue; }
+    if (char === '+') { tokens.push({ type: 'OP', value: 'or' }); i++; continue; }
+    if (char === '-') { tokens.push({ type: 'NOT' }); i++; continue; }
+    if (char === '0') { tokens.push({ type: 'CONST', value: 0 }); i++; continue; }
+    if (char === '1') { tokens.push({ type: 'CONST', value: 1 }); i++; continue; }
+
+    // Переменные: считываем только ОДНУ букву
+    if (/[a-zA-Z]/.test(char)) {
+      tokens.push({ type: 'VAR', value: char });
+      i++;
       continue;
     }
-    throw new Error(`Неизвестный символ: '${input[i]}' на позиции ${i}`);
+
+    throw new Error(`Неизвестный символ: '${char}'`);
   }
-  
-  // Auto-insert implicit multiplication
+
+  // --- Вставка неявного умножения ---
   const result = [];
-  for (let i = 0; i < tokens.length; i++) {
-    result.push(tokens[i]);
-    
-    // Check if we need to insert implicit multiplication
-    if (i < tokens.length - 1) {
-      const curr = tokens[i];
-      const next = tokens[i + 1];
-      
-      // Cases where implicit multiplication should be inserted:
-      // VAR followed by VAR: ab -> a * b
-      // VAR followed by LPAREN: a( -> a * (
-      // CONST followed by VAR: 1a -> 1 * a
-      // CONST followed by LPAREN: 1( -> 1 * (
-      // RPAREN followed by VAR: )a -> ) * a
-      // RPAREN followed by LPAREN: )( -> ) * (
-      // RPAREN followed by CONST: )1 -> ) * 1
-      
-      const needsMultiplication = 
-        (curr.type === 'VAR' && (next.type === 'VAR' || next.type === 'LPAREN')) ||
-        (curr.type === 'CONST' && (next.type === 'VAR' || next.type === 'LPAREN')) ||
-        (curr.type === 'RPAREN' && (next.type === 'VAR' || next.type === 'LPAREN' || next.type === 'CONST'));
-      
-      if (needsMultiplication) {
+  for (let j = 0; j < tokens.length; j++) {
+    result.push(tokens[j]);
+
+    if (j < tokens.length - 1) {
+      const curr = tokens[j];
+      const next = tokens[j + 1];
+
+      // VAR VAR, VAR LPAREN, CONST VAR, CONST LPAREN,
+      // RPAREN VAR, RPAREN LPAREN, RPAREN CONST
+      const needsMult =
+        ((curr.type === 'VAR' || curr.type === 'CONST') &&
+         (next.type === 'VAR' || next.type === 'LPAREN')) ||
+        (curr.type === 'RPAREN' &&
+         (next.type === 'VAR' || next.type === 'LPAREN' || next.type === 'CONST'));
+
+      if (needsMult) {
         result.push({ type: 'OP', value: 'and', implicit: true });
       }
     }
   }
-  
+
   return result;
 }
