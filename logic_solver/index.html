@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Оптимизатор Логических Выражений</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Оптимизатор Логических Выражений</h1>
+
+    <div class="syntax-help">
+      <h3>Синтаксис</h3>
+      <table>
+        <tr><th>Символ</th><th>Операция</th><th>Пример</th></tr>
+        <tr><td><code>-</code></td><td>NOT (отрицание)</td><td><code>-a</code></td></tr>
+        <tr><td><code>*</code></td><td>AND (конъюнкция)</td><td><code>a * b</code></td></tr>
+        <tr><td><code>+</code></td><td>OR (дизъюнкция)</td><td><code>a + b</code></td></tr>
+        <tr><td><code>!+</code></td><td>XOR</td><td><code>a !+ b</code></td></tr>
+        <tr><td><code>!*</code></td><td>NAND (Шеффер)</td><td><code>a !* b</code></td></tr>
+        <tr><td><code>!!+</code></td><td>NOR (Пирс)</td><td><code>a !!+ b</code></td></tr>
+        <tr><td><code>-></code></td><td>Импликация</td><td><code>a -> b</code></td></tr>
+        <tr><td><code>&lt;-></code></td><td>Эквивалентность</td><td><code>a &lt;-> b</code></td></tr>
+      </table>
+      <p>Приоритет: <code>( )</code> &gt; <code>-</code> &gt; <code>*</code> &gt; <code>+</code> / <code>!+</code> &gt; <code>-></code> &gt; <code>&lt;-></code></p>
+    </div>
+
+    <div class="input-area">
+      <label for="expression">Введите выражение:</label>
+      <div class="input-row">
+        <div class="input-wrapper">
+          <div class="input-highlight" id="input-highlight" aria-hidden="true"></div>
+          <input type="text" id="expression" placeholder="-(a * (b + -b)) + (a * c)" autocomplete="off" spellcheck="false">
+        </div>
+        <button id="solve-btn">Решить</button>
+      </div>
+      <div id="error-msg" class="error" hidden></div>
+    </div>
+
+    <div id="result-area" hidden>
+      <div class="result-header">
+        <h2>Пошаговое решение</h2>
+        <button id="copy-btn">Копировать решение как текст</button>
+      </div>
+      <ol id="steps-list"></ol>
+    </div>
+  </div>
+
+  <script src="tokenizer.js"></script>
+  <script src="parser.js"></script>
+  <script src="simplifier.js"></script>
+  <script src="ui.js"></script>
+  <script src="test.js"></script>
+</body>
+</html>
