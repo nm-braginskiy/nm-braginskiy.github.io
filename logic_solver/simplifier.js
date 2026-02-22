@@ -420,9 +420,7 @@ function simplifyStep(node, rules) {
   return null;
 }
 
-function solve(input) {
-  const tokens = tokenize(input);
-  let ast = parse(tokens);
+function solveAST(ast) {
   const rules = makeRules();
   const steps = [{ expr: astToStr(ast), law: null }];
   const seen = new Set();
@@ -439,4 +437,10 @@ function solve(input) {
     steps.push({ expr: str, law: result.law });
   }
   return steps;
+}
+
+function solve(input) {
+  const tokens = tokenize(input);
+  const ast = parse(tokens);
+  return solveAST(ast);
 }

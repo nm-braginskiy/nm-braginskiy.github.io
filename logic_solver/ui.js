@@ -8,6 +8,7 @@ let lastSteps = [];
 
 function run() {
   const input = document.getElementById('expression').value.trim();
+  const mode = document.querySelector('input[name="mode"]:checked').value;
   const errorEl = document.getElementById('error-msg');
   const resultArea = document.getElementById('result-area');
   const stepsList = document.getElementById('steps-list');
@@ -20,7 +21,29 @@ function run() {
   if (!input) { errorEl.textContent = 'Введите выражение'; errorEl.hidden = false; return; }
 
   try {
-    const steps = solve(input);
+    const tokens = tokenize(input);
+    let ast = parse(tokens);
+
+    let steps;
+    if (mode === 'invert') {
+      // Just wrap in NOT, no simplification
+      ast = { type: 'not', operand: ast };
+      steps = [
+        { expr: astToStr(parse(tokenize(input))), law: null },
+        { expr: astToStr(ast), law: 'Инверсия функции' }
+      ];
+    } else if (mode === 'invert_simplify') {
+      // Wrap in NOT, then simplify
+      ast = { type: 'not', operand: ast };
+      steps = solveAST(ast);
+      // Prepend the original expression as step 0
+      steps[0].law = 'Инверсия функции';
+      steps.unshift({ expr: astToStr(parse(tokenize(input))), law: null });
+    } else {
+      // Default: simplify
+      steps = solveAST(ast);
+    }
+
     lastSteps = steps;
     for (let i = 0; i < steps.length; i++) {
       const li = document.createElement('li');

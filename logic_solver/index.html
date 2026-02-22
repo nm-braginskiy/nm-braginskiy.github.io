@@ -28,6 +28,11 @@
 
     <div class="input-area">
       <label for="expression">Введите выражение:</label>
+      <div class="mode-selector">
+        <label class="mode-option"><input type="radio" name="mode" value="simplify" checked><span>simplify ƒ</span></label>
+        <label class="mode-option"><input type="radio" name="mode" value="invert"><span>invert ƒ → -ƒ</span></label>
+        <label class="mode-option"><input type="radio" name="mode" value="invert_simplify"><span>simplify -ƒ</span></label>
+      </div>
       <div class="input-row">
         <div class="input-wrapper">
           <div class="input-highlight" id="input-highlight" aria-hidden="true"></div>

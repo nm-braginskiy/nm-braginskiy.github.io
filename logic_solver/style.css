@@ -70,6 +70,38 @@ h2 {
   color: #aaa;
 }
 
+.mode-selector {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.mode-option {
+  cursor: pointer;
+}
+
+.mode-option input[type="radio"] {
+  display: none;
+}
+
+.mode-option span {
+  display: inline-block;
+  padding: 0.35rem 0.8rem;
+  border-radius: 5px;
+  font-size: 0.85rem;
+  background: #0f3460;
+  color: #8888aa;
+  border: 1px solid #1a1a5e;
+  transition: all 0.2s;
+}
+
+.mode-option input[type="radio"]:checked + span {
+  background: #00d4ff;
+  color: #1a1a2e;
+  border-color: #00d4ff;
+  font-weight: 600;
+}
+
 .input-row {
   display: flex;
   gap: 0.5rem;
