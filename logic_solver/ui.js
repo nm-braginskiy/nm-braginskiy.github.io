@@ -154,6 +154,45 @@ function highlightExpr(raw) {
   return result;
 }
 
+// ===== ADD IMPLICIT MULTIPLICATION HINTS =====
+function addImplicitMultiplication(raw) {
+  let result = '';
+  let i = 0;
+  
+  while (i < raw.length) {
+    const char = raw[i];
+    result += char;
+    
+    if (i < raw.length - 1) {
+      const next = raw[i + 1];
+      
+      // Check if we need to insert implicit multiplication hint
+      const isVarOrConst = (c) => /[a-zA-Z0-9]/.test(c);
+      const isOpenParen = (c) => c === '(';
+      const isCloseParen = (c) => c === ')';
+      
+      let needsMultiplication = false;
+      
+      // VAR/CONST followed by VAR/CONST or LPAREN
+      if (isVarOrConst(char) && !raw[i - 1]?.match(/[a-zA-Z0-9_]/) && (isVarOrConst(next) || isOpenParen(next))) {
+        needsMultiplication = true;
+      }
+      // RPAREN followed by VAR/CONST or LPAREN
+      else if (isCloseParen(char) && (isVarOrConst(next) || isOpenParen(next))) {
+        needsMultiplication = true;
+      }
+      
+      if (needsMultiplication && next !== ' ') {
+        result += '<span class="hl-implicit-op"> * </span>';
+      }
+    }
+    
+    i++;
+  }
+  
+  return result;
+}
+
 // ===== INPUT HIGHLIGHT (works on raw characters, not HTML-escaped) =====
 function findEnclosingBrackets(text, cursorPos) {
   // Find the innermost ( ) pair that contains the cursor
@@ -207,6 +246,14 @@ function highlightInput(raw, activeOpen, activeClose) {
       const active = (i === activeClose) ? ' hl-bracket-active' : '';
       result += `<span class="hl-bracket ${cls}${active}">)</span>`;
       i++;
+      
+      // Check if we need to insert implicit multiplication hint after )
+      if (i < raw.length && raw[i] !== ' ') {
+        const next = raw[i];
+        if (/[a-zA-Z0-9]/.test(next) || next === '(') {
+          result += '<span class="hl-implicit-op"> * </span>';
+        }
+      }
       continue;
     }
 
@@ -257,13 +304,30 @@ function highlightInput(raw, activeOpen, activeClose) {
     if (raw[i] === '0' || raw[i] === '1') {
       result += `<span class="hl-const">${raw[i]}</span>`;
       i++;
+      
+      // Check if we need to insert implicit multiplication hint after constant
+      if (i < raw.length && raw[i] !== ' ') {
+        const next = raw[i];
+        if (/[a-zA-Z]/.test(next) || next === '(') {
+          result += '<span class="hl-implicit-op"> * </span>';
+        }
+      }
       continue;
     }
 
     if (/[a-zA-Z]/.test(raw[i])) {
       let name = '';
+      let startPos = i;
       while (i < raw.length && /[a-zA-Z0-9_]/.test(raw[i])) { name += raw[i]; i++; }
       result += `<span class="hl-var">${name}</span>`;
+      
+      // Check if we need to insert implicit multiplication hint after this variable
+      if (i < raw.length && raw[i] !== ' ') {
+        const next = raw[i];
+        if (/[a-zA-Z0-9]/.test(next) || next === '(') {
+          result += '<span class="hl-implicit-op"> * </span>';
+        }
+      }
       continue;
     }
 

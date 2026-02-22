@@ -27,5 +27,36 @@ function tokenize(input) {
     }
     throw new Error(`Неизвестный символ: '${input[i]}' на позиции ${i}`);
   }
-  return tokens;
+  
+  // Auto-insert implicit multiplication
+  const result = [];
+  for (let i = 0; i < tokens.length; i++) {
+    result.push(tokens[i]);
+    
+    // Check if we need to insert implicit multiplication
+    if (i < tokens.length - 1) {
+      const curr = tokens[i];
+      const next = tokens[i + 1];
+      
+      // Cases where implicit multiplication should be inserted:
+      // VAR followed by VAR: ab -> a * b
+      // VAR followed by LPAREN: a( -> a * (
+      // CONST followed by VAR: 1a -> 1 * a
+      // CONST followed by LPAREN: 1( -> 1 * (
+      // RPAREN followed by VAR: )a -> ) * a
+      // RPAREN followed by LPAREN: )( -> ) * (
+      // RPAREN followed by CONST: )1 -> ) * 1
+      
+      const needsMultiplication = 
+        (curr.type === 'VAR' && (next.type === 'VAR' || next.type === 'LPAREN')) ||
+        (curr.type === 'CONST' && (next.type === 'VAR' || next.type === 'LPAREN')) ||
+        (curr.type === 'RPAREN' && (next.type === 'VAR' || next.type === 'LPAREN' || next.type === 'CONST'));
+      
+      if (needsMultiplication) {
+        result.push({ type: 'OP', value: 'and', implicit: true });
+      }
+    }
+  }
+  
+  return result;
 }
