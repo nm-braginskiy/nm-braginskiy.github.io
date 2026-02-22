@@ -272,170 +272,192 @@ function syncHighlight() {
   highlightDiv.innerHTML = highlightInput(val, openPos, closePos) + '\u00a0';
 }
 
-exprInput.addEventListener('input', syncHighlight);
 exprInput.addEventListener('keyup', syncHighlight);
 exprInput.addEventListener('click', syncHighlight);
 exprInput.addEventListener('scroll', () => {
   highlightDiv.scrollLeft = exprInput.scrollLeft;
 });
-
-// Initial sync
 syncHighlight();
 
-// ===== AUTO-BRACKET & SMART DELETE =====
-exprInput.addEventListener('keydown', (e) => {
+// ===== HELPER: set value and cursor =====
+function setVal(newVal, cursorPos) {
+  exprInput.value = newVal;
+  exprInput.setSelectionRange(cursorPos, cursorPos);
+  syncHighlight();
+}
+
+// ===== BEFOREINPUT: character insertion tweaks (works on mobile + desktop) =====
+exprInput.addEventListener('beforeinput', (e) => {
+  const char = e.data;
+  if (!char || char.length !== 1) return; // only single-char inserts
+  if (e.inputType !== 'insertText' && e.inputType !== 'insertCompositionText') return;
+
   const pos = exprInput.selectionStart;
   const val = exprInput.value;
+  const prev = pos > 0 ? val[pos - 1] : '';
 
-  // --- Smart operator aliases ---
-  // & → *, | → +, ~ → -
-  // V → + only when used as operator (after var/const/)), otherwise it's a variable
-  if (!e.ctrlKey && !e.metaKey && !e.altKey) {
-    if (e.key === '&' || e.key === '|' || e.key === '~') {
-      e.preventDefault();
-      const replacement = e.key === '&' ? '*' : e.key === '|' ? '+' : '-';
-      const before = val.slice(0, pos);
-      const after = val.slice(pos);
-      exprInput.value = before + replacement + after;
-      exprInput.setSelectionRange(pos + 1, pos + 1);
-      syncHighlight();
-      return;
-    }
-    // V as OR: only if previous char is var/const/)
-    if (e.key === 'V' && pos > 0) {
-      const prev = val[pos - 1];
-      if (/[a-zA-Z01]/.test(prev) || prev === ')') {
+  // --- Operator aliases: & → *, | → +, ~ → - ---
+  const alias = { '&': '*', '|': '+', '~': '-' };
+  if (alias[char]) {
+    e.preventDefault();
+    setVal(val.slice(0, pos) + alias[char] + val.slice(pos), pos + 1);
+    return;
+  }
+
+  // --- V as OR: only in operator position ---
+  if (char === 'V' && pos > 0 && (/[a-zA-Z01]/.test(prev) || prev === ')')) {
+    e.preventDefault();
+    setVal(val.slice(0, pos) + '+' + val.slice(pos), pos + 1);
+    return;
+  }
+
+  const isPrevVar = /[a-zA-Z]/.test(prev);
+  const isPrevConst = /[01]/.test(prev);
+  const isPrevClose = prev === ')';
+
+  const isCurrVar = /[a-zA-Z]/.test(char);
+  const isCurrConst = /[01]/.test(char);
+  const isCurrOpen = char === '(';
+
+  const needsMult =
+    ((isPrevVar || isPrevConst) && (isCurrVar || isCurrOpen)) ||
+    (isPrevClose && (isCurrVar || isCurrOpen || isCurrConst));
+
+  // --- Deferred subtraction: X-Y → X + -Y ---
+  if (!needsMult && (isCurrVar || isCurrConst || isCurrOpen) && prev === '-' && pos >= 2) {
+    let scanPos = pos - 2;
+    if (scanPos >= 0 && val[scanPos] === ' ') scanPos--;
+    if (scanPos >= 0) {
+      const ch = val[scanPos];
+      if (/[a-zA-Z]/.test(ch) || /[01]/.test(ch) || ch === ')') {
         e.preventDefault();
-        const before = val.slice(0, pos);
+        const dashPos = pos - 1;
+        let cutStart = dashPos;
+        if (cutStart > 0 && val[cutStart - 1] === ' ') cutStart--;
+        const before = val.slice(0, cutStart);
         const after = val.slice(pos);
-        exprInput.value = before + '+' + after;
-        exprInput.setSelectionRange(pos + 1, pos + 1);
-        syncHighlight();
+        if (char === '(') {
+          setVal(before + ' + -()' + after, before.length + 5);
+        } else {
+          setVal(before + ' + -' + char + after, before.length + 5);
+        }
         return;
       }
     }
   }
 
-  // --- Auto-insert " * " (implicit conjunction) ---
-  // When typing a variable/digit/( after a variable/digit/), insert " * " before it
-  if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    const prev = pos > 0 ? val[pos - 1] : '';
+  // --- Implicit conjunction: ab → a * b ---
+  if (needsMult) {
+    e.preventDefault();
+    const before = val.slice(0, pos);
+    const after = val.slice(pos);
+    if (char === '(') {
+      setVal(before + ' * ()' + after, pos + 4);
+    } else {
+      setVal(before + ' * ' + char + after, pos + 4);
+    }
+    return;
+  }
+
+  // --- Auto-close bracket ---
+  if (char === '(') {
+    e.preventDefault();
+    setVal(val.slice(0, pos) + '()' + val.slice(pos), pos + 1);
+    return;
+  }
+
+  // --- Skip over closing bracket ---
+  if (char === ')' && val[pos] === ')') {
+    e.preventDefault();
+    exprInput.setSelectionRange(pos + 1, pos + 1);
+    syncHighlight();
+    return;
+  }
+
+  // --- Auto-expand < + > to <-> ---
+  if (char === '>' && prev === '<') {
+    e.preventDefault();
+    setVal(val.slice(0, pos) + '->' + val.slice(pos), pos + 2);
+    return;
+  }
+});
+
+// ===== KEYDOWN: Backspace tweaks + Enter (works fine on mobile) =====
+exprInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { run(); return; }
+  if (e.key !== 'Backspace') return;
+
+  const pos = exprInput.selectionStart;
+  const val = exprInput.value;
+
+  // Smart delete: () pair
+  if (pos > 0 && val[pos - 1] === '(' && val[pos] === ')') {
+    e.preventDefault();
+    setVal(val.slice(0, pos - 1) + val.slice(pos + 1), pos - 1);
+    return;
+  }
+
+  // Smart delete: <-> — delete entire operator
+  if (pos >= 3 && val.slice(pos - 3, pos) === '<->') {
+    e.preventDefault();
+    setVal(val.slice(0, pos - 3) + val.slice(pos), pos - 3);
+    return;
+  }
+
+  // Smart delete: !!+ — delete !+ part, keep first !
+  if (pos >= 3 && val.slice(pos - 3, pos) === '!!+') {
+    e.preventDefault();
+    setVal(val.slice(0, pos - 2) + val.slice(pos), pos - 2);
+    return;
+  }
+});
+
+// ===== FALLBACK: input event for IME / mobile keyboards =====
+// Catches cases where beforeinput didn't fire (e.g. Android IME composing)
+let lastVal = exprInput.value;
+exprInput.addEventListener('input', () => {
+  const val = exprInput.value;
+  const pos = exprInput.selectionStart;
+
+  // Detect single character insertion by comparing with last known value
+  if (val.length === lastVal.length + 1 && pos > 0) {
+    const inserted = val[pos - 1];
+    const prev = pos > 1 ? val[pos - 2] : '';
+
     const isPrevVar = /[a-zA-Z]/.test(prev);
     const isPrevConst = /[01]/.test(prev);
     const isPrevClose = prev === ')';
-
-    const isCurrVar = /[a-zA-Z]/.test(e.key);
-    const isCurrConst = /[01]/.test(e.key);
-    const isCurrOpen = e.key === '(';
+    const isCurrVar = /[a-zA-Z]/.test(inserted);
+    const isCurrConst = /[01]/.test(inserted);
+    const isCurrOpen = inserted === '(';
 
     const needsMult =
       ((isPrevVar || isPrevConst) && (isCurrVar || isCurrOpen)) ||
       (isPrevClose && (isCurrVar || isCurrOpen || isCurrConst));
 
-    // Check for pattern: (var/const/))-(...)-var/const/(
-    // Typing var/const/( after "-" where before "-" is var/const/)
-    // Expand "X-Y" into "X + -Y"
-    // Handles: "a-b", "a -b", "a- b" (prev is "-" directly before cursor)
-    if (!needsMult && (isCurrVar || isCurrConst || isCurrOpen) && prev === '-' && pos >= 2) {
-      // Find what's before the "-": skip optional space
-      let scanPos = pos - 2;
-      if (scanPos >= 0 && val[scanPos] === ' ') scanPos--;
-      if (scanPos >= 0) {
-        const ch = val[scanPos];
-        if (/[a-zA-Z]/.test(ch) || /[01]/.test(ch) || ch === ')') {
-          e.preventDefault();
-          // Also eat trailing space between X and "-" if present
-          const dashPos = pos - 1;
-          let cutStart = dashPos;
-          if (cutStart > 0 && val[cutStart - 1] === ' ') cutStart--;
-          const before = val.slice(0, cutStart);
-          const after = val.slice(pos);
-          if (e.key === '(') {
-            exprInput.value = before + ' + -()' + after;
-            const cursor = before.length + 5; // between ( and )
-            exprInput.setSelectionRange(cursor, cursor);
-          } else {
-            exprInput.value = before + ' + -' + e.key + after;
-            const cursor = before.length + 5;
-            exprInput.setSelectionRange(cursor, cursor);
-          }
-          syncHighlight();
-          return;
-        }
+    if (needsMult) {
+      // Insert " * " before the just-typed character
+      const before = val.slice(0, pos - 1);
+      const after = val.slice(pos);
+      if (inserted === '(') {
+        // Also need to auto-close
+        setVal(before + ' * ()' + after, before.length + 4);
+      } else {
+        setVal(before + ' * ' + inserted + after, before.length + 4);
       }
+      lastVal = exprInput.value;
+      return;
     }
 
-    if (needsMult) {
-      e.preventDefault();
-      const before = val.slice(0, pos);
-      const after = val.slice(pos);
-
-      if (e.key === '(') {
-        // Auto-insert * and auto-close bracket
-        exprInput.value = before + ' * ()' + after;
-        exprInput.setSelectionRange(pos + 4, pos + 4);
-      } else {
-        exprInput.value = before + ' * ' + e.key + after;
-        exprInput.setSelectionRange(pos + 4, pos + 4);
-      }
-      syncHighlight();
+    // Operator aliases fallback
+    const alias = { '&': '*', '|': '+', '~': '-' };
+    if (alias[inserted]) {
+      setVal(val.slice(0, pos - 1) + alias[inserted] + val.slice(pos), pos);
+      lastVal = exprInput.value;
       return;
     }
   }
 
-  // Auto-close bracket
-  if (e.key === '(') {
-    e.preventDefault();
-    const before = val.slice(0, pos);
-    const after = val.slice(pos);
-    exprInput.value = before + '()' + after;
-    exprInput.setSelectionRange(pos + 1, pos + 1);
-    syncHighlight();
-    return;
-  }
-
-  // Skip over closing bracket if already there
-  if (e.key === ')' && val[pos] === ')') {
-    e.preventDefault();
-    exprInput.setSelectionRange(pos + 1, pos + 1);
-    return;
-  }
-
-  // Smart delete: if cursor is between (), delete both
-  if (e.key === 'Backspace' && pos > 0 && val[pos - 1] === '(' && val[pos] === ')') {
-    e.preventDefault();
-    exprInput.value = val.slice(0, pos - 1) + val.slice(pos + 1);
-    exprInput.setSelectionRange(pos - 1, pos - 1);
-    syncHighlight();
-    return;
-  }
-
-  // Smart delete: <-> — delete entire operator (3 chars)
-  if (e.key === 'Backspace' && pos >= 3 && val.slice(pos - 3, pos) === '<->') {
-    e.preventDefault();
-    exprInput.value = val.slice(0, pos - 3) + val.slice(pos);
-    exprInput.setSelectionRange(pos - 3, pos - 3);
-    syncHighlight();
-    return;
-  }
-
-  // Smart delete: !!+ — delete only !+ part, keep first !
-  if (e.key === 'Backspace' && pos >= 3 && val.slice(pos - 3, pos) === '!!+') {
-    e.preventDefault();
-    exprInput.value = val.slice(0, pos - 2) + val.slice(pos);
-    exprInput.setSelectionRange(pos - 2, pos - 2);
-    syncHighlight();
-    return;
-  }
-
-  // Auto-expand <> to <->: when typing > after <, insert - between them
-  if (e.key === '>' && pos > 0 && val[pos - 1] === '<') {
-    e.preventDefault();
-    const before = val.slice(0, pos);
-    const after = val.slice(pos);
-    exprInput.value = before + '->' + after;
-    exprInput.setSelectionRange(pos + 2, pos + 2);
-    syncHighlight();
-    return;
-  }
+  lastVal = val;
+  syncHighlight();
 });
