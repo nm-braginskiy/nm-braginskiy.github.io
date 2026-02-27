@@ -370,6 +370,58 @@ h1 .tag {
   margin-bottom: 0;
 }
 
+.result-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-dim);
+  user-select: none;
+  transition: color 0.2s;
+}
+
+.group-toggle:hover {
+  color: var(--text-main);
+}
+
+.group-toggle input[type="checkbox"] {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: #21262d;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.group-toggle input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.group-toggle input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 1px;
+  width: 5px;
+  height: 8px;
+  border: 2px solid var(--bg-dark);
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
 #copy-btn {
   padding: 5px 12px;
   font-size: 12px;
@@ -431,6 +483,20 @@ h1 .tag {
   font-size: 12px;
   margin-right: 6px;
   border: 1px solid var(--border);
+}
+
+.step-count {
+  display: inline-block;
+  font-family: var(--font-mono);
+  background: #2d2208;
+  color: #e3a33a;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-right: 6px;
+  border: 1px solid #5c3e10;
+  vertical-align: middle;
 }
 
 .step-arrow {
