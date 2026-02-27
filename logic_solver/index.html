@@ -49,7 +49,13 @@
     <div id="result-area" hidden>
       <div class="result-header">
         <h2>Пошаговое решение</h2>
-        <button id="copy-btn">Копировать</button>
+        <div class="result-controls">
+          <label class="group-toggle" id="group-toggle-label">
+            <input type="checkbox" id="group-toggle">
+            <span>Группировать шаги</span>
+          </label>
+          <button id="copy-btn">Копировать</button>
+        </div>
       </div>
       <ol id="steps-list"></ol>
     </div>
