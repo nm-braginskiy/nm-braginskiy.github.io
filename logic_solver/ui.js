@@ -74,8 +74,8 @@ function renderSteps(steps) {
       li.innerHTML =
         `<span class="step-law">${escHtml(step.law)}</span>` +
         `${countBadge}` +
-        `<span class="step-arrow-wrap"><span class="step-arrow">=&gt;</span>` +
-        `<span class="step-expr">${highlightExpr(step.expr)}</span></span>`;
+        `<span class="step-arrow">=&gt;&nbsp;</span>` +
+        `<span class="step-expr">${highlightExpr(step.expr)}</span>`;
     }
     stepsList.appendChild(li);
   }
