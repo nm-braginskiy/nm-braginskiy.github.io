@@ -25,17 +25,25 @@ function initUI() {
 }
 
 // ===== STEP GROUPING =====
-// Merges consecutive steps with the same law into one, keeping the final expression.
+// Merges consecutive steps with the same base law name into one, keeping the final expression.
+// Base name = everything before the first ':' (e.g. "Закон де Моргана" for both variants).
+function lawBaseName(law) {
+  const colon = law.indexOf(':');
+  return colon !== -1 ? law.slice(0, colon).trim() : law;
+}
+
 function groupSteps(steps) {
   if (steps.length === 0) return steps;
   const result = [steps[0]]; // step 0 has no law — always kept as-is
   let i = 1;
   while (i < steps.length) {
-    const law = steps[i].law;
+    const baseName = lawBaseName(steps[i].law);
     let count = 1;
-    while (i + count < steps.length && steps[i + count].law === law) {
+    while (i + count < steps.length && lawBaseName(steps[i + count].law) === baseName) {
       count++;
     }
+    // If merged — show short base name; if single step — keep full law name
+    const law = count > 1 ? baseName : steps[i].law;
     result.push({
       expr: steps[i + count - 1].expr,
       law,
