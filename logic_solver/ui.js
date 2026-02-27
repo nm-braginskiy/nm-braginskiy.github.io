@@ -121,13 +121,16 @@ function run() {
 // ===== COPY SOLUTION =====
 function onCopy() {
   if (lastSteps.length === 0) return;
+  const groupEl = document.getElementById('group-toggle');
+  const steps = groupEl && groupEl.checked ? groupSteps(lastSteps) : lastSteps;
   const lines = ['Пошаговое решение'];
-  for (let i = 0; i < lastSteps.length; i++) {
+  for (let i = 0; i < steps.length; i++) {
     if (i === 0) {
-      lines.push(lastSteps[i].expr);
+      lines.push(steps[i].expr);
     } else {
-      lines.push(lastSteps[i].law);
-      lines.push('→' + lastSteps[i].expr);
+      const countSuffix = steps[i].count ? ` (×${steps[i].count})` : '';
+      lines.push(steps[i].law + countSuffix);
+      lines.push('→' + steps[i].expr);
     }
   }
   const text = lines.join('\n');
