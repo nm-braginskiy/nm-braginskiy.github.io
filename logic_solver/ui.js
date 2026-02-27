@@ -74,8 +74,8 @@ function renderSteps(steps) {
       li.innerHTML =
         `<span class="step-law">${escHtml(step.law)}</span>` +
         `${countBadge}` +
-        `<span class="step-arrow"><span class="hl-op">-&gt;</span></span>` +
-        `<span class="step-expr">${highlightExpr(step.expr)}</span>`;
+        `<span class="step-arrow-wrap"><span class="step-arrow">=&gt;</span>` +
+        `<span class="step-expr">${highlightExpr(step.expr)}</span></span>`;
     }
     stepsList.appendChild(li);
   }
@@ -138,7 +138,7 @@ function onCopy() {
     } else {
       const countSuffix = steps[i].count ? ` (×${steps[i].count})` : '';
       lines.push(steps[i].law + countSuffix);
-      lines.push('->' + steps[i].expr);
+      lines.push('=>' + steps[i].expr);
     }
   }
   const text = lines.join('\n');
