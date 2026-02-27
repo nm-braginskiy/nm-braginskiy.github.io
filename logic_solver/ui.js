@@ -18,7 +18,59 @@ function initUI() {
     highlightDiv.scrollLeft = exprInput.scrollLeft;
   });
   document.getElementById('copy-btn').addEventListener('click', onCopy);
+  document.getElementById('group-toggle').addEventListener('change', () => {
+    if (lastSteps.length > 0) renderSteps(lastSteps);
+  });
   syncHighlight();
+}
+
+// ===== STEP GROUPING =====
+// Merges consecutive steps with the same law into one, keeping the final expression.
+function groupSteps(steps) {
+  if (steps.length === 0) return steps;
+  const result = [steps[0]]; // step 0 has no law — always kept as-is
+  let i = 1;
+  while (i < steps.length) {
+    const law = steps[i].law;
+    let count = 1;
+    while (i + count < steps.length && steps[i + count].law === law) {
+      count++;
+    }
+    result.push({
+      expr: steps[i + count - 1].expr,
+      law,
+      count: count > 1 ? count : null,
+    });
+    i += count;
+  }
+  return result;
+}
+
+// ===== RENDER STEPS =====
+function renderSteps(steps) {
+  const groupEl = document.getElementById('group-toggle');
+  const displaySteps = groupEl && groupEl.checked ? groupSteps(steps) : steps;
+
+  const stepsList = document.getElementById('steps-list');
+  stepsList.innerHTML = '';
+
+  for (let i = 0; i < displaySteps.length; i++) {
+    const step = displaySteps[i];
+    const li = document.createElement('li');
+    if (i === 0) {
+      li.innerHTML = `<span class="step-expr">${highlightExpr(step.expr)}</span>`;
+    } else {
+      const countBadge = step.count
+        ? `<span class="step-count">×${step.count}</span>`
+        : '';
+      li.innerHTML =
+        `<span class="step-law">${escHtml(step.law)}</span>` +
+        `${countBadge}` +
+        `<span class="step-arrow">→</span>` +
+        `<span class="step-expr">${highlightExpr(step.expr)}</span>`;
+    }
+    stepsList.appendChild(li);
+  }
 }
 
 function run() {
@@ -26,11 +78,9 @@ function run() {
   const mode = document.querySelector('input[name="mode"]:checked').value;
   const errorEl = document.getElementById('error-msg');
   const resultArea = document.getElementById('result-area');
-  const stepsList = document.getElementById('steps-list');
 
   errorEl.hidden = true;
   resultArea.hidden = true;
-  stepsList.innerHTML = '';
   lastSteps = [];
 
   if (!input) { errorEl.textContent = 'Введите выражение'; errorEl.hidden = false; return; }
@@ -60,15 +110,7 @@ function run() {
     }
 
     lastSteps = steps;
-    for (let i = 0; i < steps.length; i++) {
-      const li = document.createElement('li');
-      if (i === 0) {
-        li.innerHTML = `<span class="step-expr">${highlightExpr(steps[i].expr)}</span>`;
-      } else {
-        li.innerHTML = `<span class="step-law">${escHtml(steps[i].law)}</span><span class="step-arrow">→</span><span class="step-expr">${highlightExpr(steps[i].expr)}</span>`;
-      }
-      stepsList.appendChild(li);
-    }
+    renderSteps(steps);
     resultArea.hidden = false;
   } catch (e) {
     errorEl.textContent = 'Ошибка: ' + e.message;
