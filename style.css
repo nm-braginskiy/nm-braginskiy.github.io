@@ -565,17 +565,12 @@ h1 .tag {
   vertical-align: middle;
 }
 
-.step-arrow-wrap {
-  display: inline;
-  white-space: nowrap;
-}
-
 .step-arrow {
   font-family: var(--font-mono);
   font-size: 13px;
   color: var(--text-dim);
-  margin-right: 6px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 /* ===== Syntax Highlighting ===== */
