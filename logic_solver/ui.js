@@ -47,9 +47,11 @@ function run() {
   const errorEl = document.getElementById('error-msg');
   const resultArea = document.getElementById('result-area');
   const stepsList = document.getElementById('steps-list');
+  const truthTableArea = document.getElementById('truth-table-area');
 
   errorEl.hidden = true;
   resultArea.hidden = true;
+  truthTableArea.hidden = true;
   stepsList.innerHTML = '';
   lastSteps = [];
 
@@ -97,6 +99,11 @@ function run() {
       stepsList.appendChild(li);
     }
     resultArea.hidden = false;
+    
+    // Всегда показываем таблицу истинности после решения
+    const vars = collectVars(ast);
+    const table = buildTruthTable(ast);
+    renderTruthTable(vars, table, ast);
   } catch (e) {
     errorEl.textContent = 'Ошибка: ' + e.message;
     errorEl.hidden = false;
@@ -122,6 +129,77 @@ function onCopy() {
     btn.textContent = 'Скопировано!';
     setTimeout(() => { btn.textContent = original; }, 1500);
   });
+}
+
+// ===== RENDER TRUTH TABLE =====
+function renderTruthTable(vars, table, ast) {
+  const truthTableArea = document.getElementById('truth-table-area');
+  const truthTableContainer = document.getElementById('truth-table-container');
+  
+  // Проверяем ограничение на количество переменных
+  if (vars.length > 8) {
+    truthTableContainer.innerHTML = '<p style="color: var(--error); font-weight: 600;">⚠️ Слишком много переменных (больше 8). Таблица истинности будет содержать более 256 строк.</p>';
+    truthTableArea.hidden = false;
+    return;
+  }
+  
+  // Если нет переменных (константа)
+  if (vars.length === 0) {
+    const value = table[0].value;
+    const cssClass = value === 1 ? 'tt-true' : 'tt-false';
+    truthTableContainer.innerHTML = `
+      <table class="truth-table">
+        <thead>
+          <tr>
+            <th>${highlightExpr(astToStr(ast))}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="${cssClass}"><span class="hl-const">${value}</span></td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+    truthTableArea.hidden = false;
+    return;
+  }
+  
+  // Создаем HTML таблицы
+  let tableHTML = '<table class="truth-table">';
+  
+  // Заголовки
+  tableHTML += '<thead><tr>';
+  for (const varName of vars) {
+    tableHTML += `<th><span class="hl-var">${varName}</span></th>`;
+  }
+  tableHTML += `<th>${highlightExpr(astToStr(ast))}</th>`;
+  tableHTML += '</tr></thead>';
+  
+  // Строки данных
+  tableHTML += '<tbody>';
+  const n = vars.length;
+  for (let i = 0; i < (1 << n); i++) {
+    tableHTML += '<tr>';
+    
+    // Значения переменных (читаем биты в обратном порядке для стандартного вида)
+    for (let j = 0; j < n; j++) {
+      const bitValue = (i >> (n - 1 - j)) & 1;
+      tableHTML += `<td><span class="hl-const">${bitValue}</span></td>`;
+    }
+    
+    // Значение функции
+    const funcValue = table[i].value;
+    const cssClass = funcValue === 1 ? 'tt-true' : 'tt-false';
+    tableHTML += `<td class="${cssClass}"><span class="hl-const">${funcValue}</span></td>`;
+    
+    tableHTML += '</tr>';
+  }
+  tableHTML += '</tbody></table>';
+  
+  // Вставляем таблицу в контейнер
+  truthTableContainer.innerHTML = tableHTML;
+  truthTableArea.hidden = false;
 }
 
 function escHtml(s) {

@@ -457,3 +457,45 @@ h1 .tag {
   border-radius: 2px;
   text-shadow: 0 0 6px currentColor;
 }
+
+/* ===== TRUTH TABLE ===== */
+#truth-table-area {
+  margin-top: 1.5rem;
+}
+
+.truth-table {
+  border-collapse: collapse;
+  margin-top: 1rem;
+  font-family: 'Cascadia Code', monospace;
+  width: 100%;
+  max-width: 800px;
+}
+
+.truth-table th {
+  padding: 8px 16px;
+  border-bottom: 2px solid var(--border);
+  color: var(--text-muted);
+  font-weight: 600;
+  text-align: center;
+  background-color: var(--bg-subtle);
+}
+
+.truth-table td {
+  padding: 6px 16px;
+  text-align: center;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: 'Cascadia Code', monospace;
+}
+
+.tt-true {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tt-false {
+  color: var(--text-muted);
+}
+
+.truth-table tbody tr:hover {
+  background-color: var(--bg-subtle);
+}
