@@ -18,7 +18,27 @@ function initUI() {
     highlightDiv.scrollLeft = exprInput.scrollLeft;
   });
   document.getElementById('copy-btn').addEventListener('click', onCopy);
+  
+  // Добавляем обработчики для изменения placeholder
+  const modeInputs = document.querySelectorAll('input[name="mode"]');
+  modeInputs.forEach(input => {
+    input.addEventListener('change', updatePlaceholder);
+  });
+  
+  updatePlaceholder(); // Устанавливаем начальный placeholder
   syncHighlight();
+}
+
+function updatePlaceholder() {
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  const placeholders = {
+    'simplify': '-(a * (b + -b)) + (a * c)',
+    'invert_simplify': 'a + b * c',
+    'sdnf': 'a + b',
+    'scnf': 'a * b'
+  };
+  
+  exprInput.placeholder = placeholders[mode] || placeholders['simplify'];
 }
 
 function run() {
@@ -40,20 +60,27 @@ function run() {
     let ast = parse(tokens);
 
     let steps;
-    if (mode === 'invert') {
-      // Just wrap in NOT, no simplification
-      ast = { type: 'not', operand: ast };
-      steps = [
-        { expr: astToStr(parse(tokenize(input))), law: null },
-        { expr: astToStr(ast), law: 'Инверсия функции' }
-      ];
-    } else if (mode === 'invert_simplify') {
+    if (mode === 'invert_simplify') {
       // Wrap in NOT, then simplify
       ast = { type: 'not', operand: ast };
       steps = solveAST(ast);
       // Prepend the original expression as step 0
       steps[0].law = 'Инверсия функции';
       steps.unshift({ expr: astToStr(parse(tokenize(input))), law: null });
+    } else if (mode === 'sdnf') {
+      const { ast: nfAst, str } = buildSDNF(ast);
+      // шаги: исходное выражение → "Построение СДНФ" → результат
+      steps = [
+        { expr: astToStr(ast), law: null },
+        { expr: str, law: 'Построение СДНФ' }
+      ];
+    } else if (mode === 'scnf') {
+      const { ast: nfAst, str } = buildSCNF(ast);
+      // шаги: исходное выражение → "Построение СКНФ" → результат
+      steps = [
+        { expr: astToStr(ast), law: null },
+        { expr: str, law: 'Построение СКНФ' }
+      ];
     } else {
       // Default: simplify
       steps = solveAST(ast);
@@ -468,4 +495,24 @@ function onInput() {
 }
 
 // Auto-init when loaded standalone (not via SPA)
-if (document.getElementById('expression')) initUI();
+if (document.getElementById('expression')) {
+  initUI();
+  
+  // Автозапуск тестов при инициализации
+  // setTimeout(() => {
+  //   console.log('%c🧪 АВТОЗАПУСК ТЕСТОВ ПРИ ИНИЦИАЛИЗАЦИИ', 'background: #2196F3; color: white; font-size: 16px; padding: 8px; font-weight: bold;');
+  //   console.log('Проверка алгоритмов СДНФ и СКНФ...\n');
+    
+  //   // Запускаем основные тесты
+  //   console.log('🔧 Основные тесты режимов:');
+  //   test();
+    
+  //   console.log('\n' + '='.repeat(60) + '\n');
+    
+  //   // Запускаем автотесты нормальных форм
+  //   console.log('⚡ Автотесты СДНФ и СКНФ:');
+  //   testNormalForms();
+    
+  //   console.log('\n%c✅ Автотесты завершены. Приложение готово к работе!', 'background: #4CAF50; color: white; padding: 5px; font-weight: bold;');
+  // }, 500);
+}

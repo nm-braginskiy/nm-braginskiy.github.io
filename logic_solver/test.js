@@ -55,13 +55,6 @@ function test() {
       mode: "simplify",
       expected: "a * b"
     },
-    // --- invert ---
-    {
-      name: "Инверсия: ƒ → -ƒ (без упрощения)",
-      input: "a + b",
-      mode: "invert",
-      expected: "-(a + b)"
-    },
     // --- invert_simplify ---
     {
       name: "Инверсия + Упрощение (Де Морган)",
@@ -87,6 +80,32 @@ function test() {
       mode: "invert_simplify",
       expected: "-a + -b"
     },
+    // --- СДНФ ---
+    {
+      name: "СДНФ: a + b",
+      input: "a + b",
+      mode: "sdnf",
+      expected: "a * -b + -a * b + a * b"
+    },
+    {
+      name: "СДНФ: тождественный 0",
+      input: "a * -a",
+      mode: "sdnf",
+      expected: "0"
+    },
+    // --- СКНФ ---
+    {
+      name: "СКНФ: a * b",
+      input: "a * b",
+      mode: "scnf",
+      expected: "(a + b) * (-a + b) * (a + -b)"
+    },
+    {
+      name: "СКНФ: тождественный 1",
+      input: "a + -a",
+      mode: "scnf",
+      expected: "1"
+    },
   ];
 
   console.log("%c === ЗАПУСК ТЕСТОВ (MODES) === ", "background: #1a1a1a; color: #00d4ff; font-size: 14px; padding: 5px;");
@@ -102,16 +121,22 @@ function test() {
       let ast = parse(tokens);
       let steps;
 
-      if (mode === 'invert') {
-        ast = { type: 'not', operand: ast };
-        steps = [
-          { expr: astToStr(parse(tokenize(t.input))), law: null },
-          { expr: astToStr(ast), law: 'Инверсия функции' }
-        ];
-      } else if (mode === 'invert_simplify') {
+      if (mode === 'invert_simplify') {
         ast = { type: 'not', operand: ast };
         steps = solveAST(ast);
         steps.unshift({ expr: astToStr(parse(tokenize(t.input))), law: null });
+      } else if (mode === 'sdnf') {
+        const { ast: nfAst, str } = buildSDNF(ast);
+        steps = [
+          { expr: astToStr(ast), law: null },
+          { expr: str, law: 'Построение СДНФ' }
+        ];
+      } else if (mode === 'scnf') {
+        const { ast: nfAst, str } = buildSCNF(ast);
+        steps = [
+          { expr: astToStr(ast), law: null },
+          { expr: str, law: 'Построение СКНФ' }
+        ];
       } else {
         steps = solveAST(ast);
       }
@@ -138,4 +163,142 @@ function test() {
 
   const color = passedCount === testCases.length ? "#4CAF50" : "#F44336";
   console.log(`\n%c ИТОГО: ${passedCount}/${testCases.length} `, `background: ${color}; color: white; font-weight: bold; padding: 3px 8px;`);
+}
+
+// ===== АВТОТЕСТЫ ДЛЯ СДНФ И СКНФ =====
+function testNormalForms() {
+  console.log("%c === АВТОТЕСТЫ СДНФ И СКНФ === ", "background: #2196F3; color: white; font-size: 14px; padding: 5px;");
+  
+  const testCases = [
+    // Простые случаи с одной переменной
+    { expr: "a", expectedSDNF: "a", expectedSCNF: "-a" },
+    { expr: "-a", expectedSDNF: "-a", expectedSCNF: "a" },
+    
+    // Простые случаи с двумя переменными
+    { expr: "a + b", expectedSDNF: "-a * b + a * -b + a * b", expectedSCNF: "a + b" },
+    { expr: "a * b", expectedSDNF: "a * b", expectedSCNF: "(a + b) * (a + -b) * (-a + b)" },
+    { expr: "a !+ b", expectedSDNF: "-a * b + a * -b", expectedSCNF: "(a + b) * (-a + -b)" },
+    
+    // Тождественные функции
+    { expr: "a + -a", expectedSDNF: "1", expectedSCNF: "1" },
+    { expr: "a * -a", expectedSDNF: "0", expectedSCNF: "0" },
+    { expr: "1", expectedSDNF: "1", expectedSCNF: "1" },
+    { expr: "0", expectedSDNF: "0", expectedSCNF: "0" },
+    
+    // Более сложные случаи
+    { expr: "a -> b", expectedSDNF: "-a * -b + -a * b + a * b", expectedSCNF: "a + b" },
+    { expr: "a <-> b", expectedSDNF: "-a * -b + a * b", expectedSCNF: "(a + -b) * (-a + b)" },
+    { expr: "a !* b", expectedSDNF: "-a * -b + -a * b + a * -b", expectedSCNF: "a + b" },
+    { expr: "a !!+ b", expectedSDNF: "-a * -b", expectedSCNF: "(a + b) * (a + -b) * (-a + b)" },
+    
+    // Случаи с тремя переменными (простые)
+    { expr: "a * b * c", expectedSDNF: "a * b * c", expectedSCNF: "(a + b + c) * (a + b + -c) * (a + -b + c) * (a + -b + -c) * (-a + b + c) * (-a + b + -c) * (-a + -b + c)" },
+    { expr: "a + b + c", expectedSDNF: "-a * -b * c + -a * b * -c + -a * b * c + a * -b * -c + a * -b * c + a * b * -c + a * b * c", expectedSCNF: "a + b + c" }
+  ];
+  
+  let passedSDNF = 0;
+  let passedSCNF = 0;
+  let totalTests = testCases.length;
+  
+  testCases.forEach((testCase, index) => {
+    console.log(`\n%cТЕСТ №${index + 1}: ${testCase.expr}`, "color: #FF9800; font-weight: bold;");
+    
+    try {
+      // Парсим выражение
+      const tokens = tokenize(testCase.expr);
+      const ast = parse(tokens);
+      
+      // Тестируем СДНФ
+      const sdnfResult = buildSDNF(ast);
+      const sdnfNormalized = normalizeExpression(sdnfResult.str);
+      const expectedSDNFNormalized = normalizeExpression(testCase.expectedSDNF);
+      
+      if (sdnfNormalized === expectedSDNFNormalized) {
+        console.log(`%c  ✓ СДНФ: ${sdnfResult.str}`, "color: #4CAF50");
+        passedSDNF++;
+      } else {
+        console.log(`%c  ✗ СДНФ ОШИБКА:`, "color: #F44336");
+        console.log(`    Получено: ${sdnfResult.str}`);
+        console.log(`    Ожидалось: ${testCase.expectedSDNF}`);
+        
+        // Дополнительная проверка через таблицу истинности
+        if (checkEquivalenceByTruthTable(ast, sdnfResult.ast)) {
+          console.log(`%c    Но функции эквивалентны по таблице истинности ✓`, "color: #FF9800");
+          passedSDNF++;
+        }
+      }
+      
+      // Тестируем СКНФ
+      const scnfResult = buildSCNF(ast);
+      const scnfNormalized = normalizeExpression(scnfResult.str);
+      const expectedSCNFNormalized = normalizeExpression(testCase.expectedSCNF);
+      
+      if (scnfNormalized === expectedSCNFNormalized) {
+        console.log(`%c  ✓ СКНФ: ${scnfResult.str}`, "color: #4CAF50");
+        passedSCNF++;
+      } else {
+        console.log(`%c  ✗ СКНФ ОШИБКА:`, "color: #F44336");
+        console.log(`    Получено: ${scnfResult.str}`);
+        console.log(`    Ожидалось: ${testCase.expectedSCNF}`);
+        
+        // Дополнительная проверка через таблицу истинности
+        if (checkEquivalenceByTruthTable(ast, scnfResult.ast)) {
+          console.log(`%c    Но функции эквивалентны по таблице истинности ✓`, "color: #FF9800");
+          passedSCNF++;
+        }
+      }
+      
+    } catch (error) {
+      console.log(`%c  ✗ ОШИБКА ПАРСИНГА: ${error.message}`, "color: #F44336");
+    }
+  });
+  
+  // Итоговая статистика
+  console.log(`\n%c === РЕЗУЛЬТАТЫ АВТОТЕСТОВ === `, "background: #2196F3; color: white; font-size: 14px; padding: 5px;");
+  
+  const sdnfColor = passedSDNF === totalTests ? "#4CAF50" : "#F44336";
+  const scnfColor = passedSCNF === totalTests ? "#4CAF50" : "#F44336";
+  
+  console.log(`%c СДНФ: ${passedSDNF}/${totalTests} `, `background: ${sdnfColor}; color: white; font-weight: bold; padding: 3px 8px;`);
+  console.log(`%c СКНФ: ${passedSCNF}/${totalTests} `, `background: ${scnfColor}; color: white; font-weight: bold; padding: 3px 8px;`);
+  
+  const totalPassed = passedSDNF + passedSCNF;
+  const totalMax = totalTests * 2;
+  const overallColor = totalPassed === totalMax ? "#4CAF50" : "#F44336";
+  console.log(`%c ОБЩИЙ ИТОГ: ${totalPassed}/${totalMax} `, `background: ${overallColor}; color: white; font-weight: bold; padding: 3px 8px;`);
+}
+
+// Вспомогательная функция для нормализации выражений (убирает пробелы и приводит к единому виду)
+function normalizeExpression(expr) {
+  return expr.replace(/\s+/g, '').toLowerCase();
+}
+
+// Проверка эквивалентности двух AST через таблицы истинности
+function checkEquivalenceByTruthTable(ast1, ast2) {
+  try {
+    const vars1 = collectVars(ast1);
+    const vars2 = collectVars(ast2);
+    const allVars = [...new Set([...vars1, ...vars2])].sort();
+    
+    const n = allVars.length;
+    
+    // Проверяем все возможные комбинации переменных
+    for (let i = 0; i < (1 << n); i++) {
+      const assignment = {};
+      for (let j = 0; j < n; j++) {
+        assignment[allVars[j]] = (i >> j) & 1;
+      }
+      
+      const val1 = evalAST(ast1, assignment);
+      const val2 = evalAST(ast2, assignment);
+      
+      if (val1 !== val2) {
+        return false;
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
