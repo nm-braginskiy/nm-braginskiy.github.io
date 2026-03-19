@@ -57,17 +57,32 @@ function groupSteps(steps) {
   const result = [steps[0]]; // step 0 has no law — always kept as-is
   let i = 1;
   while (i < steps.length) {
-    const baseName = lawBaseName(steps[i].law);
+    const currentStep = steps[i];
+    
+    // Если шаг содержит HTML, не группируем его
+    if (currentStep.isHTML) {
+      result.push(currentStep);
+      i++;
+      continue;
+    }
+    
+    const baseName = lawBaseName(currentStep.law);
     let count = 1;
-    while (i + count < steps.length && lawBaseName(steps[i + count].law) === baseName) {
+    
+    // Ищем последовательные шаги с тем же базовым именем закона (но без HTML)
+    while (i + count < steps.length && 
+           !steps[i + count].isHTML && 
+           lawBaseName(steps[i + count].law) === baseName) {
       count++;
     }
+    
     // If merged — show short base name; if single step — keep full law name
-    const law = count > 1 ? baseName : steps[i].law;
+    const law = count > 1 ? baseName : currentStep.law;
     result.push({
       expr: steps[i + count - 1].expr,
       law,
       count: count > 1 ? count : null,
+      isHTML: currentStep.isHTML // сохраняем флаг HTML
     });
     i += count;
   }
