@@ -50,7 +50,14 @@
     <div id="result-area" hidden>
       <div class="result-header">
         <h2>Пошаговое решение</h2>
-        <button id="copy-btn">Копировать</button>
+        <div class="result-controls">
+          <label class="group-toggle" title="Группировать одинаковые шаги">
+            <input type="checkbox" id="group-toggle">
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            <span class="toggle-label">Группировать</span>
+          </label>
+          <button id="copy-btn">Копировать</button>
+        </div>
       </div>
       <ol id="steps-list"></ol>
     </div>

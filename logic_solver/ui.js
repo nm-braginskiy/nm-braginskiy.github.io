@@ -18,6 +18,9 @@ function initUI() {
     highlightDiv.scrollLeft = exprInput.scrollLeft;
   });
   document.getElementById('copy-btn').addEventListener('click', onCopy);
+  document.getElementById('group-toggle').addEventListener('change', () => {
+    if (lastSteps.length > 0) renderSteps(lastSteps);
+  });
   
   // Добавляем обработчики для изменения placeholder
   const modeInputs = document.querySelectorAll('input[name="mode"]');
@@ -41,18 +44,74 @@ function updatePlaceholder() {
   exprInput.placeholder = placeholders[mode] || placeholders['simplify'];
 }
 
+// ===== STEP GROUPING =====
+// Merges consecutive steps with the same base law name into one, keeping the final expression.
+// Base name = everything before the first ':' (e.g. "Закон де Моргана" for both variants).
+function lawBaseName(law) {
+  const colon = law.indexOf(':');
+  return colon !== -1 ? law.slice(0, colon).trim() : law;
+}
+
+function groupSteps(steps) {
+  if (steps.length === 0) return steps;
+  const result = [steps[0]]; // step 0 has no law — always kept as-is
+  let i = 1;
+  while (i < steps.length) {
+    const baseName = lawBaseName(steps[i].law);
+    let count = 1;
+    while (i + count < steps.length && lawBaseName(steps[i + count].law) === baseName) {
+      count++;
+    }
+    // If merged — show short base name; if single step — keep full law name
+    const law = count > 1 ? baseName : steps[i].law;
+    result.push({
+      expr: steps[i + count - 1].expr,
+      law,
+      count: count > 1 ? count : null,
+    });
+    i += count;
+  }
+  return result;
+}
+
+// ===== RENDER STEPS =====
+function renderSteps(steps) {
+  const groupEl = document.getElementById('group-toggle');
+  const displaySteps = groupEl && groupEl.checked ? groupSteps(steps) : steps;
+
+  const stepsList = document.getElementById('steps-list');
+  stepsList.innerHTML = '';
+
+  for (let i = 0; i < displaySteps.length; i++) {
+    const step = displaySteps[i];
+    const li = document.createElement('li');
+    if (i === 0) {
+      li.innerHTML = `<span class="step-expr">${highlightExpr(step.expr)}</span>`;
+    } else {
+      const countBadge = step.count
+        ? `<span class="step-count">×${step.count}</span>`
+        : '';
+      const exprContent = step.isHTML ? step.expr : highlightExpr(step.expr);
+      li.innerHTML =
+        `<span class="step-law">${escHtml(step.law)}</span>` +
+        `${countBadge}` +
+        `<span class="step-arrow">=&gt;&nbsp;</span>` +
+        `<span class="step-expr">${exprContent}</span>`;
+    }
+    stepsList.appendChild(li);
+  }
+}
+
 function run() {
   const input = document.getElementById('expression').value.trim();
   const mode = document.querySelector('input[name="mode"]:checked').value;
   const errorEl = document.getElementById('error-msg');
   const resultArea = document.getElementById('result-area');
-  const stepsList = document.getElementById('steps-list');
   const truthTableArea = document.getElementById('truth-table-area');
 
   errorEl.hidden = true;
   resultArea.hidden = true;
   truthTableArea.hidden = true;
-  stepsList.innerHTML = '';
   lastSteps = [];
 
   if (!input) { errorEl.textContent = 'Введите выражение'; errorEl.hidden = false; return; }
@@ -93,16 +152,7 @@ function run() {
     }
 
     lastSteps = steps;
-    for (let i = 0; i < steps.length; i++) {
-      const li = document.createElement('li');
-      if (i === 0) {
-        li.innerHTML = `<span class="step-expr">${highlightExpr(steps[i].expr)}</span>`;
-      } else {
-        const exprContent = steps[i].isHTML ? steps[i].expr : highlightExpr(steps[i].expr);
-        li.innerHTML = `<span class="step-law">${escHtml(steps[i].law)}</span><span class="step-arrow">→</span><span class="step-expr">${exprContent}</span>`;
-      }
-      stepsList.appendChild(li);
-    }
+    renderSteps(steps);
     resultArea.hidden = false;
     
     // Всегда показываем таблицу истинности после решения
@@ -118,13 +168,16 @@ function run() {
 // ===== COPY SOLUTION =====
 function onCopy() {
   if (lastSteps.length === 0) return;
+  const groupEl = document.getElementById('group-toggle');
+  const steps = groupEl && groupEl.checked ? groupSteps(lastSteps) : lastSteps;
   const lines = ['Пошаговое решение'];
-  for (let i = 0; i < lastSteps.length; i++) {
+  for (let i = 0; i < steps.length; i++) {
     if (i === 0) {
-      lines.push(lastSteps[i].expr);
+      lines.push(steps[i].expr);
     } else {
-      lines.push(lastSteps[i].law);
-      lines.push('→' + lastSteps[i].expr);
+      const countSuffix = steps[i].count ? ` (×${steps[i].count})` : '';
+      lines.push(steps[i].law + countSuffix);
+      lines.push('=>' + steps[i].expr);
     }
   }
   const text = lines.join('\n');
