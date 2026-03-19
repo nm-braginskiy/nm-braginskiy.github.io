@@ -458,6 +458,83 @@ h1 .tag {
   text-shadow: 0 0 6px currentColor;
 }
 
+/* ===== ALIGNED NORMAL FORMS ===== */
+.nf-container {
+  font-family: 'Cascadia Code', monospace;
+  margin: 0.5rem 0;
+}
+
+.nf-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  line-height: 1.8;
+  margin-bottom: 2px;
+}
+
+.nf-join {
+  min-width: 24px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.nf-cell {
+  min-width: 28px;
+  text-align: right;
+  font-family: 'Cascadia Code', monospace;
+  font-weight: 500;
+}
+
+.nf-opsym {
+  min-width: 18px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.nf-constant {
+  font-family: 'Cascadia Code', monospace;
+  font-size: 1.2em;
+  font-weight: 600;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+/* ===== STEPS LIST ===== */
+#steps-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#steps-list li {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--bg-subtle);
+  border-radius: 6px;
+  border-left: 3px solid var(--border);
+}
+
+.step-expr {
+  font-family: 'Cascadia Code', monospace;
+  font-size: 1.1em;
+  white-space: pre-line; /* Поддержка переносов строк */
+  line-height: 1.4;
+}
+
+.step-law {
+  color: var(--text-muted);
+  font-size: 0.9em;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.step-arrow {
+  color: var(--accent);
+  font-weight: bold;
+  margin: 0 0.5rem;
+  display: inline-block;
+}
+
 /* ===== TRUTH TABLE ===== */
 #truth-table-area {
   margin-top: 1.5rem;

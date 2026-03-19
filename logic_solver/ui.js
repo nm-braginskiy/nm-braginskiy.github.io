@@ -71,17 +71,21 @@ function run() {
       steps.unshift({ expr: astToStr(parse(tokenize(input))), law: null });
     } else if (mode === 'sdnf') {
       const { ast: nfAst, str } = buildSDNF(ast);
+      const vars = collectVars(ast);
+      const alignedStr = renderAlignedNF(str, vars);
       // шаги: исходное выражение → "Построение СДНФ" → результат
       steps = [
         { expr: astToStr(ast), law: null },
-        { expr: str, law: 'Построение СДНФ' }
+        { expr: alignedStr, law: 'Построение СДНФ', isHTML: true }
       ];
     } else if (mode === 'scnf') {
       const { ast: nfAst, str } = buildSCNF(ast);
+      const vars = collectVars(ast);
+      const alignedStr = renderAlignedNF(str, vars);
       // шаги: исходное выражение → "Построение СКНФ" → результат
       steps = [
         { expr: astToStr(ast), law: null },
-        { expr: str, law: 'Построение СКНФ' }
+        { expr: alignedStr, law: 'Построение СКНФ', isHTML: true }
       ];
     } else {
       // Default: simplify
@@ -94,7 +98,8 @@ function run() {
       if (i === 0) {
         li.innerHTML = `<span class="step-expr">${highlightExpr(steps[i].expr)}</span>`;
       } else {
-        li.innerHTML = `<span class="step-law">${escHtml(steps[i].law)}</span><span class="step-arrow">→</span><span class="step-expr">${highlightExpr(steps[i].expr)}</span>`;
+        const exprContent = steps[i].isHTML ? steps[i].expr : highlightExpr(steps[i].expr);
+        li.innerHTML = `<span class="step-law">${escHtml(steps[i].law)}</span><span class="step-arrow">→</span><span class="step-expr">${exprContent}</span>`;
       }
       stepsList.appendChild(li);
     }
@@ -200,6 +205,119 @@ function renderTruthTable(vars, table, ast) {
   // Вставляем таблицу в контейнер
   truthTableContainer.innerHTML = tableHTML;
   truthTableArea.hidden = false;
+}
+
+// ===== RENDER ALIGNED NORMAL FORMS =====
+function renderAlignedNF(expression, vars) {
+  // Парсим выражение на термы
+  let terms = [];
+  let joinOp = '';
+  
+  if (expression === '0' || expression === '1') {
+    return `<div class="nf-constant"><span class="hl-const">${expression}</span></div>`;
+  }
+  
+  // Определяем тип нормальной формы и разбиваем на термы
+  if (expression.includes(') * (') || (expression.startsWith('(') && expression.includes(' * '))) {
+    // СКНФ - разбиваем по * между скобками
+    joinOp = '*';
+    terms = expression.split(' * ').map(term => term.replace(/[()]/g, '').split(' + '));
+  } else if (expression.includes(' + ')) {
+    // СДНФ - разбиваем по +
+    joinOp = '+';
+    terms = expression.split(' + ').map(term => term.split(' * '));
+  } else {
+    // Одиночный терм
+    terms = [expression.split(' * ')];
+    joinOp = '';
+  }
+  
+  // Вычисляем ширину ячейки на основе максимальной длины переменной
+  const maxVarLength = vars.reduce((max, varName) => Math.max(max, varName.length), 1);
+  const cellWidth = Math.max(28, maxVarLength * 9 + 14);
+  
+  let html = '<div class="nf-container">';
+  
+  terms.forEach((term, termIndex) => {
+    html += '<div class="nf-row">';
+    
+    // Добавляем символ соединения (+ или *) для всех строк кроме первой
+    if (termIndex > 0) {
+      html += `<span class="nf-join"><span class="hl-op">${joinOp}</span></span>`;
+    } else {
+      html += '<span class="nf-join"></span>'; // пустое место для выравнивания
+    }
+    
+    // Добавляем литералы терма
+    term.forEach((literal, litIndex) => {
+      const cleanLiteral = literal.trim();
+      const isNegated = cleanLiteral.startsWith('-');
+      const varName = isNegated ? cleanLiteral.substring(1) : cleanLiteral;
+      
+      // Ячейка с литералом используя стандартную подсветку
+      if (isNegated) {
+        html += `<span class="nf-cell" style="min-width: ${cellWidth}px;"><span class="hl-not">-</span><span class="hl-var">${varName}</span></span>`;
+      } else {
+        html += `<span class="nf-cell" style="min-width: ${cellWidth}px;"><span class="hl-var">${cleanLiteral}</span></span>`;
+      }
+      
+      // Операторы между литералами в терме
+      if (litIndex < term.length - 1) {
+        const opSymbol = joinOp === '+' ? '*' : '+'; // внутри СДНФ используем *, внутри СКНФ используем +
+        html += `<span class="nf-opsym"><span class="hl-op">${opSymbol}</span></span>`;
+      }
+    });
+    
+    html += '</div>';
+  });
+  
+  html += '</div>';
+  return html;
+}
+
+// ===== FORMAT NORMAL FORMS =====
+function formatNormalForm(expression) {
+  // Разбиваем по + (дизъюнкция) или * между скобками (конъюнкция скобок)
+  let formatted = expression;
+  
+  // Для СДНФ: разбиваем по + между термами
+  if (expression.includes(' + ') && !expression.includes('(')) {
+    // Простая СДНФ без скобок - разбиваем по +
+    formatted = expression.replace(/ \+ /g, ' +\n');
+  }
+  // Для СКНФ: разбиваем по * между скобками
+  else if (expression.includes(') * (')) {
+    // СКНФ со скобками - разбиваем по * между скобками
+    formatted = expression.replace(/\) \* \(/g, ') *\n(');
+  }
+  // Смешанные случаи: если есть и скобки и + вне скобок
+  else if (expression.includes(' + ') && expression.includes('(')) {
+    // Разбиваем по + только если он не внутри скобок
+    let result = '';
+    let depth = 0;
+    let i = 0;
+    
+    while (i < expression.length) {
+      const char = expression[i];
+      
+      if (char === '(') {
+        depth++;
+        result += char;
+      } else if (char === ')') {
+        depth--;
+        result += char;
+      } else if (char === '+' && depth === 0 && expression[i-1] === ' ' && expression[i+1] === ' ') {
+        result += ' +\n';
+        i += 2; // пропускаем пробел после +
+      } else {
+        result += char;
+      }
+      i++;
+    }
+    formatted = result;
+  }
+  
+  return formatted;
 }
 
 function escHtml(s) {
